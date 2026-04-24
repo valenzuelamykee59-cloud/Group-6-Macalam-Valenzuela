@@ -1,8 +1,9 @@
-import javax.swing.*;
+ import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.Random;
+import java.util.ArrayList;
 
 public class HowToTrainYourWiener {
 
@@ -60,6 +61,24 @@ public class HowToTrainYourWiener {
     private static boolean firstTrophy = false;
     private static boolean champion = false;
 
+    // === ANIMATION ===
+    private static JButton petBtnRef = null;
+    private static javax.swing.Timer clickAnimTimer = null;
+    private static javax.swing.Timer growAnimTimer = null;
+    private static int clickAnimStep = 0;
+    private static int growAnimStep = 0;
+    private static int dogBaseFontSize = 72;
+    private static JPanel particleLayer = null;  // transparent overlay for Cookie Clicker particles
+    private static JFrame mainFrame = null;
+
+    // === COMBO / BOOST SYSTEM ===
+    private static int comboCount = 500;           // how many rapid clicks in a row
+    private static long lastClickTime = 0;        // ms of last click
+    private static final int COMBO_WINDOW = 600;  // ms window to chain clicks
+    private static final int MAX_COMBO = 20;      // cap combo at 20x
+    private static JLabel comboLabel = null;      // displayed in UI
+    private static javax.swing.Timer comboDecayTimer = null; // resets combo if idle
+
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
@@ -78,6 +97,7 @@ public class HowToTrainYourWiener {
 
     private static void buildUI() {
         JFrame frame = new JFrame("> HOW TO TRAIN YOUR WIENER.exe");
+        mainFrame = frame;
         frame.setSize(1000, 750);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setResizable(false);
@@ -85,6 +105,12 @@ public class HowToTrainYourWiener {
 
         JPanel mainPanel = new JPanel(null);
         mainPanel.setBackground(new Color(18, 18, 24));
+
+        // Transparent particle overlay — sits above everything, mouse events pass through
+        particleLayer = new JPanel(null) {
+            @Override public boolean contains(int x, int y) { return false; } // click-through
+        };
+        particleLayer.setOpaque(false);
 
         // === TITLE ===
         JLabel titleLabel = new JLabel("🌭 HOW TO TRAIN YOUR WIENER 🌭", SwingConstants.CENTER);
@@ -99,23 +125,156 @@ public class HowToTrainYourWiener {
         subLabel.setBounds(0, 40, 1000, 18);
         mainPanel.add(subLabel);
 
-        // === DOG DISPLAY ===
-        dogPanel = new JPanel(new BorderLayout(5, 5));
+        // === DOG DISPLAY — Island Theme ===
+        dogPanel = new JPanel(null);
         dogPanel.setBounds(355, 65, 290, 185);
-        dogPanel.setBackground(new Color(12, 12, 18));
+        dogPanel.setBackground(new Color(184, 221, 184));
         dogPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(255, 80, 40), 3),
-            BorderFactory.createEmptyBorder(8, 8, 8, 8)
+            BorderFactory.createLineBorder(new Color(90, 170, 90), 3),
+            BorderFactory.createEmptyBorder(4, 4, 4, 4)
         ));
 
-        dogLabel = new JLabel("🐶", SwingConstants.CENTER);
-        dogLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 90));
-        dogPanel.add(dogLabel, BorderLayout.CENTER);
+        // Sky/island background
+        JPanel skyPanel = new JPanel(null);
+        skyPanel.setBounds(0, 0, 290, 185);
+        skyPanel.setBackground(new Color(214, 236, 214));
+        skyPanel.setOpaque(true);
+        dogPanel.add(skyPanel);
 
+        // Ground oval
+        JLabel groundLabel = new JLabel("") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(126, 200, 126));
+                g2.fillOval(0, 0, getWidth(), getHeight());
+                g2.setColor(new Color(90, 170, 90));
+                g2.drawOval(0, 0, getWidth()-1, getHeight()-1);
+                g2.dispose();
+            }
+        };
+        groundLabel.setBounds(20, 135, 240, 60);
+        skyPanel.add(groundLabel);
+
+        // Trees
+        JLabel treeLeft = new JLabel("🌴");
+        treeLeft.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
+        treeLeft.setBounds(8, 105, 36, 36);
+        skyPanel.add(treeLeft);
+
+        JLabel treeRight = new JLabel("🌸");
+        treeRight.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
+        treeRight.setBounds(246, 108, 36, 36);
+        skyPanel.add(treeRight);
+
+        // Dumbbells
+        JLabel dbLeft = new JLabel("🏋️");
+        dbLeft.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 18));
+        dbLeft.setBounds(40, 118, 30, 28);
+        skyPanel.add(dbLeft);
+
+        JLabel dbRight = new JLabel("🏋️");
+        dbRight.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 18));
+        dbRight.setBounds(218, 118, 30, 28);
+        skyPanel.add(dbRight);
+
+        // Wiener dog — custom painted, centered in skyPanel (290 wide)
+        dogLabel = new JLabel("") {
+            @Override protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                int w = getWidth(), h = getHeight();
+                // ---- body (long sausage) ----
+                g2.setColor(new Color(160, 82, 45));
+                g2.fillRoundRect(8, h/2 - 14, w - 20, 28, 28, 28);
+                // belly highlight
+                g2.setColor(new Color(205, 133, 63));
+                g2.fillRoundRect(18, h/2 - 7, w - 45, 14, 14, 14);
+                // ---- head ----
+                g2.setColor(new Color(160, 82, 45));
+                g2.fillOval(w - 36, h/2 - 18, 38, 34);
+                // ear
+                g2.setColor(new Color(101, 50, 20));
+                g2.fillOval(w - 22, h/2 - 14, 14, 20);
+                // snout
+                g2.setColor(new Color(205, 133, 63));
+                g2.fillOval(w - 12, h/2 - 4, 16, 12);
+                // nose
+                g2.setColor(new Color(40, 20, 10));
+                g2.fillOval(w - 3, h/2 - 1, 7, 6);
+                // eye
+                g2.setColor(Color.WHITE);
+                g2.fillOval(w - 23, h/2 - 9, 8, 8);
+                g2.setColor(new Color(30, 15, 5));
+                g2.fillOval(w - 21, h/2 - 7, 5, 5);
+                g2.setColor(Color.WHITE);
+                g2.fillOval(w - 20, h/2 - 8, 2, 2);
+                // ---- tail (curled) ----
+                g2.setColor(new Color(160, 82, 45));
+                g2.setStroke(new BasicStroke(5, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2.drawArc(2, h/2 - 20, 18, 22, 200, -240);
+                g2.setStroke(new BasicStroke(1));
+                // ---- legs (4 short stubs) ----
+                g2.setColor(new Color(130, 65, 30));
+                int[] legX = {28, 44, 68, 84};
+                for (int lx : legX) {
+                    g2.fillRoundRect(lx, h/2 + 12, 10, 16, 6, 6);
+                    // paw
+                    g2.setColor(new Color(180, 100, 60));
+                    g2.fillOval(lx - 1, h/2 + 25, 12, 7);
+                    g2.setColor(new Color(130, 65, 30));
+                }
+                g2.dispose();
+            }
+        };
+        dogLabel.setBounds(45, 45, 200, 90);
+        skyPanel.add(dogLabel);
+
+        // Stage label
         stageLabel = new JLabel("[ STAGE: PUPPY ]", SwingConstants.CENTER);
-        stageLabel.setFont(new Font("Courier New", Font.BOLD, 12));
-        stageLabel.setForeground(new Color(255, 200, 0));
-        dogPanel.add(stageLabel, BorderLayout.SOUTH);
+        stageLabel.setFont(new Font("Courier New", Font.BOLD, 10));
+        stageLabel.setForeground(new Color(45, 90, 45));
+        stageLabel.setBounds(0, 165, 290, 18);
+        dogPanel.add(stageLabel);
+
+        // Click the dog to pet it
+        MouseAdapter dogPetListener = new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e) {
+                long now = System.currentTimeMillis();
+                if (now - lastClickTime < COMBO_WINDOW) {
+                    comboCount = Math.min(comboCount + 1, MAX_COMBO);
+                } else {
+                    comboCount = 1;
+                }
+                lastClickTime = now;
+                if (comboDecayTimer != null) comboDecayTimer.stop();
+                comboDecayTimer = new javax.swing.Timer(COMBO_WINDOW + 200, ev -> {
+                    comboCount = 0;
+                    updateComboLabel();
+                    comboDecayTimer.stop();
+                });
+                comboDecayTimer.setRepeats(false);
+                comboDecayTimer.start();
+                updateComboLabel();
+                Point p = SwingUtilities.convertPoint((java.awt.Component)e.getSource(), e.getPoint(), particleLayer);
+                int base = clickPower * (hasClickMultiplier ? 2 : 1) * (hasGoldenLeash ? 2 : 1);
+                int gain = base * Math.max(1, comboCount);
+                spawnTreatParticle(p.x, p.y, "+" + gain + " 🍖", comboCount);
+                treats += gain;
+                totalTreatsEarned += gain;
+                dogHappiness = Math.min(100, dogHappiness + 1);
+                if (comboCount >= 10) addLog("> 🔥 COMBO x" + comboCount + "! +" + gain + " treats!");
+                else addLog("> PET: +" + gain + " treats  [HAPPINESS +1]" + (comboCount > 1 ? "  COMBO x" + comboCount : ""));
+                updateGame();
+                animateDogBounce();
+                if (comboCount >= 5) shakeFrame(comboCount);
+            }
+        };
+        dogLabel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        dogLabel.addMouseListener(dogPetListener);
+        skyPanel.addMouseListener(dogPetListener);
+
         mainPanel.add(dogPanel);
 
         // === LEFT STATS PANEL ===
@@ -168,12 +327,22 @@ public class HowToTrainYourWiener {
 
         // === PROGRESS BAR ===
         trainingBar = new JProgressBar(0, 100);
-        trainingBar.setBounds(355, 258, 290, 22);
+        trainingBar.setBounds(355, 258, 290, 20);
         trainingBar.setBackground(Color.BLACK);
         trainingBar.setForeground(new Color(255, 80, 40));
         trainingBar.setStringPainted(true);
         trainingBar.setFont(new Font("Courier New", Font.BOLD, 9));
         mainPanel.add(trainingBar);
+
+        // === COMBO METER ===
+        comboLabel = new JLabel("COMBO: x1", SwingConstants.CENTER);
+        comboLabel.setBounds(355, 285, 290, 22);
+        comboLabel.setFont(new Font("Courier New", Font.BOLD, 13));
+        comboLabel.setForeground(new Color(255, 215, 0));
+        comboLabel.setBackground(new Color(8, 8, 12));
+        comboLabel.setOpaque(true);
+        comboLabel.setBorder(BorderFactory.createLineBorder(new Color(80, 80, 100), 1));
+        mainPanel.add(comboLabel);
 
         // === EVENT LOG ===
         eventLog = new JTextArea();
@@ -182,7 +351,7 @@ public class HowToTrainYourWiener {
         eventLog.setForeground(new Color(0, 230, 0));
         eventLog.setFont(new Font("Monospaced", Font.PLAIN, 10));
         JScrollPane scrollPane = new JScrollPane(eventLog);
-        scrollPane.setBounds(15, 290, 968, 135);
+        scrollPane.setBounds(15, 310, 968, 115);
         scrollPane.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(new Color(255, 80, 40)),
             ">> SYSTEM LOG <<",
@@ -193,35 +362,23 @@ public class HowToTrainYourWiener {
         mainPanel.add(scrollPane);
 
         // === BUTTONS ROW 1 ===
-        JButton petBtn = makeBtn("🐕 [PET WIENER]", new Color(255, 80, 40));
-        petBtn.setBounds(15, 435, 185, 42);
-        petBtn.addActionListener(e -> {
-            int gain = clickPower * (hasClickMultiplier ? 2 : 1) * (hasGoldenLeash ? 2 : 1);
-            treats += gain;
-            totalTreatsEarned += gain;
-            dogHappiness = Math.min(100, dogHappiness + 1);
-            addLog("> PET: +" + gain + " treats  [HAPPINESS +1]");
-            updateGame();
-        });
-        mainPanel.add(petBtn);
-
         JButton strengthBtn = makeBtn("💪 STRENGTH TRAIN [30]", new Color(100, 230, 100));
-        strengthBtn.setBounds(210, 435, 185, 42);
+        strengthBtn.setBounds(15, 435, 230, 42);
         strengthBtn.addActionListener(e -> trainStat("strength"));
         mainPanel.add(strengthBtn);
 
         JButton speedBtn = makeBtn("⚡ ZOOMIES TRAIN [25]", new Color(100, 200, 255));
-        speedBtn.setBounds(405, 435, 185, 42);
+        speedBtn.setBounds(258, 435, 230, 42);
         speedBtn.addActionListener(e -> trainStat("speed"));
         mainPanel.add(speedBtn);
 
         JButton obeBtn = makeBtn("🎓 OBEDIENCE CLASS [40]", new Color(255, 200, 100));
-        obeBtn.setBounds(600, 435, 185, 42);
+        obeBtn.setBounds(501, 435, 230, 42);
         obeBtn.addActionListener(e -> trainStat("obedience"));
         mainPanel.add(obeBtn);
 
         JButton charmBtn = makeBtn("✨ CHARM LESSONS [35]", new Color(255, 150, 220));
-        charmBtn.setBounds(795, 435, 185, 42);
+        charmBtn.setBounds(744, 435, 240, 42);
         charmBtn.addActionListener(e -> trainStat("charm"));
         mainPanel.add(charmBtn);
 
@@ -241,9 +398,17 @@ public class HowToTrainYourWiener {
         shopBtn.addActionListener(e -> openShop());
         mainPanel.add(shopBtn);
 
-        JButton gambleBtn = makeBtn("🎲 CASINO RISK IT", new Color(255, 215, 50));
+        JButton gambleBtn = makeBtn("🪙 CASINO RISK IT", new Color(255, 215, 50));
         gambleBtn.setBounds(600, 487, 185, 42);
-        gambleBtn.addActionListener(e -> openGamble());
+        gambleBtn.addMouseListener(new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e) {
+                Point p = SwingUtilities.convertPoint(gambleBtn, e.getPoint(), particleLayer);
+                spawnCoinBurst(p.x, p.y);
+            }
+        });
+        gambleBtn.addActionListener(e -> {
+            animateCoinFlip(gambleBtn, () -> openGamble());
+        });
         mainPanel.add(gambleBtn);
 
         JButton prestigeBtn = makeBtn("🌟 PRESTIGE [RESET]", new Color(255, 80, 200));
@@ -301,6 +466,12 @@ public class HowToTrainYourWiener {
         mainPanel.add(tpsLabel);
 
         frame.add(mainPanel);
+
+        // Add particle overlay on top via the layered pane
+        JLayeredPane lp = frame.getLayeredPane();
+        particleLayer.setBounds(0, 0, 1000, 750);
+        lp.add(particleLayer, JLayeredPane.POPUP_LAYER);
+
         frame.setVisible(true);
 
         startIdle();
@@ -534,14 +705,14 @@ public class HowToTrainYourWiener {
 
         // Shop items: name, desc, cost, owned
         Object[][] items = {
-            {"🔁 CLICK MULTIPLIER", "2x click rewards", 500, hasClickMultiplier},
-            {"🤖 AUTO-PETTER", "Auto-pets every 8s", 1000, hasAutoCollector},
-            {"✨ GOLDEN LEASH", "+50% all income", 2000, hasGoldenLeash},
-            {"🏭 TREAT FACTORY", "Double speed bonus", 3500, hasTreatFactory},
-            {"🧙 DOG WHISPERER", "Double obedience bonus", 2500, hasDogWhisperer},
-            {"👟 SPEED BOOTS", "+5 treats/sec instantly", 1500, hasSpeedBoots},
-            {"😊 HAPPINESS POTION", "+50 happiness [100]", 100, null},
-            {"🍖 TREAT PACK", "200 → 500 treats", 200, null},
+            {"🔁 CLICK MULTIPLIER", "2x click rewards", 3500, hasClickMultiplier},
+            {"🤖 AUTO-PETTER", "Auto-pets every 8s", 8000, hasAutoCollector},
+            {"✨ GOLDEN LEASH", "+50% all income", 18000, hasGoldenLeash},
+            {"🏭 TREAT FACTORY", "Double speed bonus", 35000, hasTreatFactory},
+            {"🧙 DOG WHISPERER", "Double obedience bonus", 22000, hasDogWhisperer},
+            {"👟 SPEED BOOTS", "+5 treats/sec instantly", 12000, hasSpeedBoots},
+            {"😊 HAPPINESS POTION", "+50 happiness [100]", 750, null},
+            {"🍖 TREAT PACK", "200 → 500 treats", 1500, null},
         };
 
         for (Object[] item : items) {
@@ -722,6 +893,7 @@ public class HowToTrainYourWiener {
             treats += bonus;
             totalTreatsEarned += bonus;
             addLog("═══ STAGE UP! " + old + " → " + currentStage + " +" + bonus + " treats! ═══");
+            animateDogGrow();
         }
     }
 
@@ -732,13 +904,16 @@ public class HowToTrainYourWiener {
             if (currentStage.equals(stages[i])) { dogLabel.setText(emojis[i]); break; }
         }
 
-        Color border = dogHappiness > 70 ? new Color(80, 240, 80) :
-                       dogHappiness > 35 ? new Color(240, 200, 0) : new Color(240, 50, 50);
+        // Island panel border glows green/yellow/red with happiness
+        Color border = dogHappiness > 70 ? new Color(90, 200, 90) :
+                       dogHappiness > 35 ? new Color(200, 200, 0) : new Color(220, 60, 60);
         dogPanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(border, 3),
-            BorderFactory.createEmptyBorder(8, 8, 8, 8)
+            BorderFactory.createEmptyBorder(4, 4, 4, 4)
         ));
         stageLabel.setText("[ STAGE: " + currentStage + " ]");
+        stageLabel.setForeground(dogHappiness > 70 ? new Color(45, 90, 45) :
+                                 dogHappiness > 35 ? new Color(130, 100, 0) : new Color(160, 40, 40));
     }
 
     private static void updateLabels() {
@@ -765,6 +940,277 @@ public class HowToTrainYourWiener {
         trainingBar.setMaximum(max);
         trainingBar.setString(String.format("TRAINING: %d/%d | TROPHIES: %d/10", Math.min(total, max), max, trophies));
         trainingBar.setForeground(total >= max ? new Color(255, 215, 0) : new Color(255, 80, 40));
+    }
+
+    // === ANIMATIONS ===
+
+    /** Flashes the pet button with a bright colour burst on click */
+    private static void animateClick(JButton btn) {
+        if (clickAnimTimer != null && clickAnimTimer.isRunning()) clickAnimTimer.stop();
+        clickAnimStep = 0;
+        Rectangle origin = btn.getBounds();
+        Color[] frames = {
+            new Color(255, 240, 0),
+            new Color(255, 160, 30),
+            new Color(255, 100, 20),
+            new Color(255, 80,  40),
+        };
+        clickAnimTimer = new javax.swing.Timer(55, null);
+        clickAnimTimer.addActionListener(e -> {
+            if (clickAnimStep < frames.length) {
+                btn.setForeground(frames[clickAnimStep]);
+                int jitter = (clickAnimStep % 2 == 0) ? 3 : -3;
+                btn.setBounds(origin.x + jitter, origin.y, origin.width, origin.height);
+                clickAnimStep++;
+            } else {
+                btn.setBounds(origin.x, origin.y, origin.width, origin.height);
+                btn.setForeground(new Color(255, 80, 40));
+                clickAnimTimer.stop();
+            }
+        });
+        clickAnimTimer.start();
+    }
+
+    /** Coin-flip animation on the casino button before opening the dialog */
+    private static void animateCoinFlip(JButton btn, Runnable onComplete) {
+        btn.setEnabled(false);
+        // Frames simulate a coin spinning: edge-on → face → edge-on → other face → repeat
+        String[] frames = {
+            "🪙 CASINO RISK IT",   // full coin
+            "| CASINO RISK IT",    // edge-on (thin)
+            "🟡 CASINO RISK IT",  // other face (gold circle)
+            "| CASINO RISK IT",
+            "🪙 CASINO RISK IT",
+            "| CASINO RISK IT",
+            "🟡 CASINO RISK IT",
+            "| CASINO RISK IT",
+            "🪙 CASINO RISK IT",
+            "| CASINO RISK IT",
+            "🎲 CASINO RISK IT",   // lands on dice — result revealed
+        };
+        Color[] colours = {
+            new Color(255, 215, 50), new Color(200, 170, 20),
+            new Color(255, 240, 100), new Color(200, 170, 20),
+            new Color(255, 215, 50), new Color(200, 170, 20),
+            new Color(255, 240, 100), new Color(200, 170, 20),
+            new Color(255, 215, 50), new Color(200, 170, 20),
+            new Color(255, 80, 40),
+        };
+        int[] step = {0};
+        javax.swing.Timer coinTimer = new javax.swing.Timer(90, null);
+        coinTimer.addActionListener(e -> {
+            if (step[0] < frames.length) {
+                btn.setText(frames[step[0]]);
+                btn.setForeground(colours[step[0]]);
+                // Vertical squish: shrink font height to simulate coin spinning perspective
+                int fontSize = (frames[step[0]].startsWith("|")) ? 8 : 10;
+                btn.setFont(new Font("Courier New", Font.BOLD, fontSize));
+                step[0]++;
+            } else {
+                // Restore button
+                btn.setText("🪙 CASINO RISK IT");
+                btn.setForeground(new Color(255, 215, 50));
+                btn.setFont(new Font("Courier New", Font.BOLD, 10));
+                btn.setEnabled(true);
+                coinTimer.stop();
+                onComplete.run();
+            }
+        });
+        coinTimer.start();
+    }
+
+
+    private static void animateDogBounce() {
+        if (growAnimTimer != null && growAnimTimer.isRunning()) return;
+        Rectangle origin = dogLabel.getBounds();
+        int[] offsets = {-10, -18, -10, 0, -5, 0};
+        int[] idx = {0};
+        javax.swing.Timer t = new javax.swing.Timer(60, null);
+        t.addActionListener(e -> {
+            if (idx[0] < offsets.length) {
+                dogLabel.setLocation(origin.x, origin.y + offsets[idx[0]]);
+                idx[0]++;
+            } else {
+                dogLabel.setLocation(origin.x, origin.y);
+                t.stop();
+            }
+        });
+        t.start();
+    }
+
+    /** Big pulsing grow animation when the wiener stages up */
+    private static void animateDogGrow() {
+        if (growAnimTimer != null && growAnimTimer.isRunning()) growAnimTimer.stop();
+        growAnimStep = 0;
+        Rectangle origin = dogLabel.getBounds();
+        int[] offsets = {5, -8, 14, 8, 18, 12, 16, 14, 12, 10, 6, 0}; // y offsets for pulse
+        Color[] colours = {
+            new Color(255, 215, 0), new Color(255, 140, 0), new Color(255, 80, 40),
+            new Color(255, 215, 0), new Color(255, 140, 0), new Color(255, 80, 40),
+            new Color(255, 215, 0), new Color(255, 140, 0), new Color(255, 80, 40),
+            new Color(255, 215, 0), new Color(255, 80, 40), new Color(255, 200, 0)
+        };
+        growAnimTimer = new javax.swing.Timer(80, null);
+        growAnimTimer.addActionListener(e -> {
+            if (growAnimStep < offsets.length) {
+                dogLabel.setLocation(origin.x, origin.y + offsets[growAnimStep]);
+                stageLabel.setForeground(colours[growAnimStep]);
+                dogPanel.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(colours[growAnimStep], 5),
+                    BorderFactory.createEmptyBorder(8, 8, 8, 8)
+                ));
+                growAnimStep++;
+            } else {
+                dogLabel.setLocation(origin.x, origin.y);
+                stageLabel.setForeground(new Color(255, 200, 0));
+                growAnimTimer.stop();
+            }
+        });
+        growAnimTimer.start();
+    }
+
+    // === COMBO LABEL UPDATE ===
+    private static void updateComboLabel() {
+        if (comboLabel == null) return;
+        int c = Math.max(1, comboCount);
+        String bar = "▓".repeat(Math.min(c, 20)) + "░".repeat(Math.max(0, 20 - c));
+        comboLabel.setText("COMBO x" + c + "  [" + bar + "]");
+        // Color ramp: white → yellow → orange → red → magenta at max
+        Color col;
+        if      (c >= 20) col = new Color(255,  50, 255);
+        else if (c >= 15) col = new Color(255,  50,  50);
+        else if (c >= 10) col = new Color(255, 120,   0);
+        else if (c >=  5) col = new Color(255, 215,   0);
+        else              col = new Color(180, 180, 180);
+        comboLabel.setForeground(col);
+        comboLabel.setBorder(BorderFactory.createLineBorder(col, c >= 5 ? 2 : 1));
+    }
+
+    // === SCREEN SHAKE — shakes only the dog label, returns to center ===
+    private static void shakeFrame(int comboLevel) {
+        if (dogLabel == null) return;
+        Rectangle origin = dogLabel.getBounds();
+        int magnitude = Math.min(comboLevel / 3, 8);
+        int[] shakeX = new int[]{magnitude, -magnitude, magnitude/2, -magnitude/2, 0};
+        int[] idx = {0};
+        javax.swing.Timer shaker = new javax.swing.Timer(40, null);
+        shaker.addActionListener(e -> {
+            if (idx[0] < shakeX.length) {
+                dogLabel.setLocation(origin.x + shakeX[idx[0]], origin.y + (idx[0] % 2 == 0 ? 2 : -2));
+                idx[0]++;
+            } else {
+                dogLabel.setLocation(origin.x, origin.y);
+                shaker.stop();
+            }
+        });
+        shaker.start();
+    }
+
+    // === COOKIE CLICKER STYLE PARTICLES ===
+
+    /**
+     * Spawns a floating "+N 🍖" label that rises and fades — combo-aware size & colour.
+     */
+    private static void spawnTreatParticle(int x, int y, String text, int combo) {
+        if (particleLayer == null) return;
+
+        int spawnX = x + random.nextInt(60) - 30;
+        int spawnY = y + random.nextInt(20) - 10;
+
+        // Scale font with combo
+        int fontSize = Math.min(12 + combo * 2, 36);
+
+        // Color ramp
+        Color col;
+        if      (combo >= 20) col = new Color(255,  50, 255);
+        else if (combo >= 15) col = new Color(255,  50,  50);
+        else if (combo >= 10) col = new Color(255, 120,   0);
+        else if (combo >=  5) col = new Color(255, 215,   0);
+        else                  col = new Color(255, 230,   0);
+
+        JLabel lbl = new JLabel(text);
+        lbl.setFont(new Font("Courier New", Font.BOLD, fontSize));
+        lbl.setForeground(col);
+        lbl.setSize(lbl.getPreferredSize());
+        lbl.setLocation(spawnX - lbl.getWidth() / 2, spawnY);
+        particleLayer.add(lbl);
+        particleLayer.repaint();
+
+        // Rise faster at higher combos
+        int riseSpeed = 2 + Math.min(combo / 3, 5);
+        int totalFrames = 35;
+        int[] frame = {0};
+        int[] currentY = {spawnY};
+        javax.swing.Timer t = new javax.swing.Timer(20, null);
+        t.addActionListener(e -> {
+            frame[0]++;
+            currentY[0] -= riseSpeed;
+            int alpha = Math.max(0, 255 - (int)(255.0 * frame[0] / totalFrames));
+            lbl.setForeground(new Color(col.getRed(), col.getGreen(), col.getBlue(), alpha));
+            lbl.setLocation(spawnX - lbl.getWidth() / 2, currentY[0]);
+            particleLayer.repaint();
+
+            if (frame[0] >= totalFrames) {
+                t.stop();
+                particleLayer.remove(lbl);
+                particleLayer.repaint();
+            }
+        });
+        t.start();
+    }
+
+    // Legacy overload (used by other callers with no combo info)
+    private static void spawnTreatParticle(int x, int y, String text) {
+        spawnTreatParticle(x, y, text, 1);
+    }
+
+    /**
+     * Shoots 6 gold coin emojis outward in a burst — one per direction — for the casino button.
+     * Each coin arcs outward and fades, like a jackpot spray.
+     */
+    private static void spawnCoinBurst(int cx, int cy) {
+        if (particleLayer == null) return;
+
+        // 8 directions: angles in degrees
+        double[] angles = {0, 45, 90, 135, 180, 225, 270, 315};
+        String[] coinEmojis = {"🪙", "💰", "🪙", "🟡", "🪙", "💰", "🪙", "🟡"};
+
+        for (int i = 0; i < angles.length; i++) {
+            double angle = Math.toRadians(angles[i]);
+            double dx = Math.cos(angle) * 3.5;
+            double dy = Math.sin(angle) * 3.5;
+            String emoji = coinEmojis[i];
+
+            JLabel coin = new JLabel(emoji);
+            coin.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 18));
+            coin.setSize(coin.getPreferredSize());
+            coin.setLocation(cx - coin.getWidth() / 2, cy - coin.getHeight() / 2);
+            particleLayer.add(coin);
+
+            int[] frame = {0};
+            int totalFrames = 28;
+            double[] px = {cx - coin.getWidth() / 2.0};
+            double[] py = {cy - coin.getHeight() / 2.0};
+
+            javax.swing.Timer t = new javax.swing.Timer(16, null); // ~60fps
+            t.addActionListener(e -> {
+                frame[0]++;
+                px[0] += dx;
+                py[0] += dy + frame[0] * 0.15; // slight gravity arc
+                int alpha = Math.max(0, 255 - (int)(255.0 * frame[0] / totalFrames));
+                // Use a coloured foreground fade; emoji alpha not fully supported but label fades via opacity trick
+                coin.setForeground(new Color(255, 215, 0, alpha));
+                coin.setLocation((int) px[0], (int) py[0]);
+                particleLayer.repaint();
+
+                if (frame[0] >= totalFrames) {
+                    t.stop();
+                    particleLayer.remove(coin);
+                    particleLayer.repaint();
+                }
+            });
+            t.start();
+        }
     }
 
     // === HELPERS ===

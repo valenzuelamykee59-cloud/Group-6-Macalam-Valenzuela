@@ -5,7 +5,7 @@ import java.awt.event.*;
 import java.util.Random;
 import java.util.ArrayList;
 
-public class HowToTrainYourWiener {
+public class HowToTrainYourWiener_v1_8 {
 
     // === CORE RESOURCES ===
     private static int treats = 200;
@@ -72,7 +72,7 @@ public class HowToTrainYourWiener {
     private static JFrame mainFrame = null;
 
     // === COMBO / BOOST SYSTEM ===
-    private static int comboCount = 500;           // how many rapid clicks in a row
+    private static int comboCount = 0;           // how many rapid clicks in a row
     private static long lastClickTime = 0;        // ms of last click
     private static final int COMBO_WINDOW = 600;  // ms window to chain clicks
     private static final int MAX_COMBO = 20;      // cap combo at 20x
@@ -1023,12 +1023,12 @@ public class HowToTrainYourWiener {
     private static void animateDogBounce() {
         if (growAnimTimer != null && growAnimTimer.isRunning()) return;
         Rectangle origin = dogLabel.getBounds();
-        int[] offsets = {-10, -18, -10, 0, -5, 0};
+        int[] offsets = {4, -4, 3, -3, 2, -2, 1, 0};
         int[] idx = {0};
-        javax.swing.Timer t = new javax.swing.Timer(60, null);
+        javax.swing.Timer t = new javax.swing.Timer(40, null);
         t.addActionListener(e -> {
             if (idx[0] < offsets.length) {
-                dogLabel.setLocation(origin.x, origin.y + offsets[idx[0]]);
+                dogLabel.setLocation(origin.x + offsets[idx[0]], origin.y);
                 idx[0]++;
             } else {
                 dogLabel.setLocation(origin.x, origin.y);
