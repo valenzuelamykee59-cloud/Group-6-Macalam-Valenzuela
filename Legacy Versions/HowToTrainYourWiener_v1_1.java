@@ -1,9 +1,9 @@
 import javax.swing.*;
 import javax.swing.border.*;
-import java.awt.event.*;
+import java.awt.*;
 import java.util.Random;
 
-public class HowToTrainYourWiener {
+public class HowToTrainYourWiener_v1_1 {
     // Game variables
     private static int treats = 500;
     private static int strength = 1;
