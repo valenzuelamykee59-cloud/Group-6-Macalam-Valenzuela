@@ -30,7 +30,7 @@ Java 8 or newer is enough.
 - Bench uses a fixed bench rack, lowers to the chest, pauses, then presses back up.
 - Deadlift starts on the floor, rises to lockout, then returns under control.
 - Cardio has its own treadmill-style stage view and click loop.
-- The barbell width and plate count scale with strength, and the `Olympic Bar` unlock lets it stretch into absurd late-game proportions.
+- The barbell width and plate count scale with strength, and the`Olympic Bar`unlock lets it stretch into absurd late-game proportions.
 - The default stage is now a powerlifting gym with platform flooring, banners, plate stacks, props, companions, shadows, and animated ambience.
 
 ## Progression
