@@ -1,3 +1,4 @@
+package HowToTrainYourWiener_v1;
  import java.awt.*;
 import java.awt.event.*;
 import java.util.Random;
