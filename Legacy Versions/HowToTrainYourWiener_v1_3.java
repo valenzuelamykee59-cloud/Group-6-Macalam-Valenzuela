@@ -4,7 +4,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.util.Random;
 
-public class HowToTrainYourWiener {
+public class HowToTrainYourWiener_v1_3 {
 
     // === CORE RESOURCES ===
     private static int treats = 200;

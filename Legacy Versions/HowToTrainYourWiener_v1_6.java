@@ -5,7 +5,7 @@ import java.awt.event.*;
 import java.util.Random;
 import java.util.ArrayList;
 
-public class HowToTrainYourWiener {
+public class HowToTrainYourWiener_v1_6 {
 
     // === CORE RESOURCES ===
     private static int treats = 200;
