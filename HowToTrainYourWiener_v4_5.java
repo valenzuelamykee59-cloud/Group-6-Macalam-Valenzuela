@@ -1194,7 +1194,11 @@ public class HowToTrainYourWiener_v4_5 extends JFrame {
             }
         ));
 
-        dialog.setContentPane(content);
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+        dialog.setContentPane(scroll);
         dialog.setVisible(true);
     }
 
@@ -1212,7 +1216,11 @@ public class HowToTrainYourWiener_v4_5 extends JFrame {
         content.add(Box.createVerticalStrut(10));
         content.add(createStyleRow(HatStyle.CROWN, dialog));
 
-        dialog.setContentPane(content);
+        JScrollPane scroll = new JScrollPane(content);
+        scroll.setBorder(BorderFactory.createEmptyBorder());
+        scroll.getVerticalScrollBar().setUnitIncrement(16);
+
+        dialog.setContentPane(scroll);
         dialog.setVisible(true);
     }
 
